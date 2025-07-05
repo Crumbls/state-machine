@@ -1,0 +1,59 @@
+{
+    "name": "crumbls/state-machine",
+    "description": "A Laravel state machine package with fluent interface configuration",
+    "keywords": ["laravel", "state-machine", "states", "transitions"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chase Miller",
+            "email": "chase@crumbls.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0",
+        "illuminate/events": "^11.0",
+        "illuminate/bus": "^11.0",
+        "illuminate/queue": "^11.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "pestphp/pest": "^2.0",
+        "pestphp/pest-plugin-laravel": "^2.0",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-strict-rules": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Crumbls\\StateMachine\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Crumbls\\StateMachine\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Crumbls\\StateMachine\\StateMachineServiceProvider"
+            ],
+            "aliases": {
+                "StateMachine": "Crumbls\\StateMachine\\Facades\\StateMachine"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test-coverage": "pest --coverage",
+        "analyse": "phpstan analyse",
+        "check": ["@analyse", "@test"]
+    }
+}

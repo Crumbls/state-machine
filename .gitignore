@@ -1,0 +1,34 @@
+# Dependencies
+/vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+.phpunit.cache
+.phpunit.result.cache
+coverage/
+
+# Laravel
+.env
+.env.local
+.env.*.local
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# Logs
+*.log
+storage/logs/
+
+# Temporary files
+*.tmp
+*.temp

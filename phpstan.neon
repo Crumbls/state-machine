@@ -1,0 +1,14 @@
+parameters:
+    level: 4
+    paths:
+        - src
+    excludePaths:
+        - examples
+    checkUninitializedProperties: true
+    treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        - '#Unsafe usage of new static\(\)#'
+        - '#Trait .* is used zero times and is not analysed#'
+    
+includes:
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
