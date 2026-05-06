@@ -28,16 +28,16 @@ class StateMachine
     public function __construct(string $stateClass, array $context = [])
     {
         $this->validateStateClass($stateClass);
-        
+
         $this->stateClass = $stateClass;
         $this->context = $context;
         $this->config = $stateClass::config();
-        
+
         $defaultState = $this->config->getDefaultState();
         if ($defaultState === null) {
             throw StateConfigurationException::noDefaultState($stateClass);
         }
-        
+
         $this->validateStateClass($defaultState);
         $this->currentState = new $defaultState($this, $context);
     }
@@ -62,7 +62,7 @@ class StateMachine
                 throw StateSerializationException::missingKey($key);
             }
         }
-        
+
         $machine = new static($data['state_class'], $data['context']);
         $machine->validateStateClass($data['current_state']);
         $machine->currentState = new $data['current_state']($machine, $data['context']);
@@ -96,7 +96,7 @@ class StateMachine
     public function canTransitionTo(string $stateClass): bool
     {
         $currentStateName = $this->getCurrentStateName();
-        
+
         if (!$this->config->isTransitionAllowed($currentStateName, $stateClass)) {
             return false;
         }
@@ -119,7 +119,7 @@ class StateMachine
     public function transitionTo(string $stateClass, array $context = []): State
     {
         $this->validateStateClass($stateClass);
-        
+
         if (!$this->canTransitionTo($stateClass)) {
             throw new InvalidTransitionException(
                 "Cannot transition from {$this->getCurrentStateName()} to {$stateClass}"
@@ -131,7 +131,7 @@ class StateMachine
         if (count($middleware) > 0) {
             $request = new StateTransitionRequest($this, $this->currentState, $stateClass, $context);
             $pipeline = new StateMachinePipeline();
-            
+
             return $pipeline->send($request)
                 ->through($middleware)
                 ->then(function (StateTransitionRequest $request) {
@@ -153,27 +153,27 @@ class StateMachine
         ]);
 
         $this->fireCallbacks('exit', $currentStateName);
-        
+
         $this->currentState->onExit();
-        
+
         $this->fireCallbacks($currentStateName, $stateClass);
-        
+
         $newContext = array_merge($this->context, $context);
         $this->currentState = new $stateClass($this, $newContext);
         $this->context = $newContext;
-        
+
         $this->currentState->onEnter();
-        
+
         $this->fireCallbacks('enter', $stateClass);
-        
+
         Event::dispatch(new Events\StateTransitioned($this, $currentStateName, $stateClass, $context));
-        
+
         Log::debug("State transition completed", [
             'from' => $currentStateName,
             'to' => $stateClass,
             'final_context' => $this->context
         ]);
-        
+
         return $this->currentState;
     }
 
@@ -324,7 +324,7 @@ class StateMachine
         if (!class_exists($stateClass)) {
             throw StateConfigurationException::invalidStateClass($stateClass);
         }
-        
+
         if (!is_subclass_of($stateClass, State::class)) {
             throw StateConfigurationException::invalidStateClass($stateClass);
         }
@@ -333,7 +333,7 @@ class StateMachine
     protected function fireCallbacks(string $event, ?string $state = null): void
     {
         $callbacks = $this->config->getCallbacksFor($event, $state);
-        
+
         foreach ($callbacks as $callback) {
             if (!is_callable($callback)) {
                 Log::warning("Non-callable callback found", [
@@ -343,7 +343,7 @@ class StateMachine
                 ]);
                 continue;
             }
-            
+
             try {
                 $callback($this->currentState, $this->context);
             } catch (\Exception $e) {

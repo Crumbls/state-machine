@@ -54,6 +54,10 @@ abstract class State
 
     public function transitionTo(string $stateClass, array $context = []): State
     {
+        // If no context is provided, preserve the current context
+        if (empty($context)) {
+            $context = $this->getContext();
+        }
         return $this->stateMachine->transitionTo($stateClass, $context);
     }
 

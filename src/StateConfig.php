@@ -10,6 +10,10 @@ class StateConfig
     protected ?string $defaultState = null;
     /** @var array<class-string<State>, array<class-string<State>>> */
     protected array $allowedTransitions = [];
+    /** @var array<class-string<State>, class-string<State>> */
+    protected array $preferredTransitions = [];
+    /** @var array<class-string<State>, class-string<State>> */
+    protected array $rollbackTransitions = [];
     /** @var array<string, callable> */
     protected array $guards = [];
     /** @var array<string, array<callable>> */
@@ -49,6 +53,30 @@ class StateConfig
         foreach ($toStates as $to) {
             $this->allowTransition($from, $to);
         }
+        return $this;
+    }
+
+    /**
+     * Mark a transition as the preferred next state for auto-progression.
+     *
+     * @param class-string<State> $from
+     * @param class-string<State> $to
+     */
+    public function preferredTransition(string $from, string $to): static
+    {
+        $this->preferredTransitions[$from] = $to;
+        return $this;
+    }
+
+    /**
+     * Mark a transition as the rollback target for the given state.
+     *
+     * @param class-string<State> $from
+     * @param class-string<State> $to
+     */
+    public function rollbackTransition(string $from, string $to): static
+    {
+        $this->rollbackTransitions[$from] = $to;
         return $this;
     }
 
@@ -111,8 +139,34 @@ class StateConfig
 
     public function isTransitionAllowed(string $from, string $to): bool
     {
-        return isset($this->allowedTransitions[$from]) && 
+        return isset($this->allowedTransitions[$from]) &&
                in_array($to, $this->allowedTransitions[$from], true);
+    }
+
+    /**
+     * @return array<class-string<State>, class-string<State>>
+     */
+    public function getPreferredTransitions(): array
+    {
+        return $this->preferredTransitions;
+    }
+
+    public function getPreferredTransition(string $from): ?string
+    {
+        return $this->preferredTransitions[$from] ?? null;
+    }
+
+    /**
+     * @return array<class-string<State>, class-string<State>>
+     */
+    public function getRollbackTransitions(): array
+    {
+        return $this->rollbackTransitions;
+    }
+
+    public function getRollbackTransition(string $from): ?string
+    {
+        return $this->rollbackTransitions[$from] ?? null;
     }
 
     public function hasGuard(string $from, string $to): bool
