@@ -142,6 +142,114 @@ class StateMachine
         return $this->executeTransition($stateClass, $context);
     }
 
+    /**
+     * Attempt a transition without throwing. Returns true if the transition
+     * succeeded, false if it was disallowed by config or a guard.
+     *
+     * @param class-string<State> $stateClass
+     * @param array<string, mixed> $context
+     */
+    public function tryTransitionTo(string $stateClass, array $context = []): bool
+    {
+        if (!$this->canTransitionTo($stateClass)) {
+            return false;
+        }
+
+        $this->transitionTo($stateClass, $context);
+
+        return true;
+    }
+
+    /**
+     * Advance to the preferred next state for the current state.
+     * Returns false if there is no preferred transition or it is not allowed.
+     */
+    public function proceed(array $context = []): bool
+    {
+        $next = $this->config->getPreferredTransition($this->getCurrentStateName());
+        if ($next === null) {
+            return false;
+        }
+
+        return $this->tryTransitionTo($next, $context);
+    }
+
+    /**
+     * Step back to the rollback target for the current state.
+     * Returns false if there is no rollback transition or it is not allowed.
+     */
+    public function rollback(array $context = []): bool
+    {
+        $previous = $this->config->getRollbackTransition($this->getCurrentStateName());
+        if ($previous === null) {
+            return false;
+        }
+
+        return $this->tryTransitionTo($previous, $context);
+    }
+
+    public function canProceed(): bool
+    {
+        $next = $this->config->getPreferredTransition($this->getCurrentStateName());
+        if ($next === null) {
+            return false;
+        }
+
+        return $this->canTransitionTo($next);
+    }
+
+    public function canRollback(): bool
+    {
+        $previous = $this->config->getRollbackTransition($this->getCurrentStateName());
+        if ($previous === null) {
+            return false;
+        }
+
+        return $this->canTransitionTo($previous);
+    }
+
+    /**
+     * Walk the preferred-transition chain until it cannot continue.
+     *
+     * If the current state implements an `execute(): bool|null` method, it is
+     * invoked after each transition; returning false halts the loop.
+     *
+     * @return array{transition_count: int, final_state_class: class-string<State>, stopped_reason: string}
+     */
+    public function autoTransition(int $maxTransitions = 100): array
+    {
+        $transitionCount = 0;
+        $stoppedReason = 'no_preferred_transition';
+
+        while ($this->canProceed() && $transitionCount < $maxTransitions) {
+            if (!$this->proceed()) {
+                $stoppedReason = 'proceed_failed';
+                break;
+            }
+
+            $transitionCount++;
+
+            $currentState = $this->currentState;
+            if (method_exists($currentState, 'execute')) {
+                $result = $currentState->execute();
+                if ($result === false) {
+                    $stoppedReason = 'execute_failed';
+                    break;
+                }
+            }
+        }
+
+        if ($stoppedReason === 'no_preferred_transition' && $transitionCount >= $maxTransitions) {
+            $stoppedReason = 'max_transitions_reached';
+        }
+
+        return [
+            'transition_count' => $transitionCount,
+            'final_state_class' => $this->getCurrentStateName(),
+            'stopped_reason' => $stoppedReason,
+        ];
+    }
+
     protected function executeTransition(string $stateClass, array $context = []): State
     {
         $currentStateName = $this->getCurrentStateName();

@@ -88,35 +88,37 @@ class ProcessStateTransition implements ShouldQueue
 
     protected function dispatchNextTransition(StateMachine $machine): void
     {
-        // Get possible next states from current state
         $currentState = $machine->getCurrentStateName();
-        $allowedTransitions = $machine->getConfig()->getAllowedTransitions();
+        $config = $machine->getConfig();
 
-        if (isset($allowedTransitions[$currentState])) {
-            $nextStates = $allowedTransitions[$currentState];
-            
-            // If there's only one possible next state, auto-transition
-            if (count($nextStates) === 1) {
-                $nextState = $nextStates[0];
-                
-                // Check if transition is allowed (guards, etc.)
-                if ($machine->canTransitionTo($nextState)) {
-                    Log::debug('Auto-continuing to next state', [
-                        'identifier' => $this->identifier,
-                        'current_state' => $currentState,
-                        'next_state' => $nextState
-                    ]);
+        $nextState = $config->getPreferredTransition($currentState);
 
-                    // Dispatch next transition
-                    static::dispatch(
-                        $machine->toArray(),
-                        $nextState,
-                        [],
-                        $this->identifier,
-                        $this->continueOnSuccess
-                    );
-                }
+        if ($nextState === null) {
+            // No preferred transition: only auto-continue when there is exactly
+            // one allowed exit, so we never silently pick between branches.
+            $allowed = $config->getAllowedTransitions()[$currentState] ?? [];
+            if (count($allowed) !== 1) {
+                return;
             }
+            $nextState = $allowed[0];
         }
+
+        if (!$machine->canTransitionTo($nextState)) {
+            return;
+        }
+
+        Log::debug('Auto-continuing to next state', [
+            'identifier' => $this->identifier,
+            'current_state' => $currentState,
+            'next_state' => $nextState,
+        ]);
+
+        static::dispatch(
+            $machine->toArray(),
+            $nextState,
+            [],
+            $this->identifier,
+            $this->continueOnSuccess
+        );
     }
 }

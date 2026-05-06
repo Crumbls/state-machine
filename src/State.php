@@ -61,6 +61,31 @@ abstract class State
         return $this->stateMachine->transitionTo($stateClass, $context);
     }
 
+    public function tryTransitionTo(string $stateClass, array $context = []): bool
+    {
+        return $this->stateMachine->tryTransitionTo($stateClass, $context);
+    }
+
+    public function proceed(array $context = []): bool
+    {
+        return $this->stateMachine->proceed($context);
+    }
+
+    public function rollback(array $context = []): bool
+    {
+        return $this->stateMachine->rollback($context);
+    }
+
+    public function canProceed(): bool
+    {
+        return $this->stateMachine->canProceed();
+    }
+
+    public function canRollback(): bool
+    {
+        return $this->stateMachine->canRollback();
+    }
+
     public function onEnter(): void
     {
         //

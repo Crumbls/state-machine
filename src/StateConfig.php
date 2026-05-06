@@ -204,4 +204,106 @@ class StateConfig
     {
         return $this->middleware;
     }
+
+    /**
+     * Lint the configuration. Returns a list of warning messages describing
+     * inconsistencies in the state graph. An empty array means the graph
+     * is internally consistent.
+     *
+     * Detects:
+     * - default state not present in any allowed-from list (likely terminal-only)
+     * - preferred transitions that aren't in allowedTransitions
+     * - rollback transitions that aren't in allowedTransitions
+     * - guards/callbacks registered for a from->to pair that isn't allowed
+     * - states reachable as a transition target but never used as a from
+     *   (informational; terminal states are normal)
+     * - states that are unreachable from the default state via allowed
+     *   transitions (BFS)
+     *
+     * @return array<int, string>
+     */
+    public function validate(): array
+    {
+        $warnings = [];
+
+        $allFromStates = array_keys($this->allowedTransitions);
+        $allToStates = [];
+        foreach ($this->allowedTransitions as $targets) {
+            foreach ($targets as $target) {
+                $allToStates[] = $target;
+            }
+        }
+        $allStates = array_values(array_unique(array_merge($allFromStates, $allToStates)));
+
+        if ($this->defaultState !== null && !in_array($this->defaultState, $allStates, true)) {
+            $warnings[] = "Default state {$this->defaultState} is not referenced by any transition.";
+        }
+
+        foreach ($this->preferredTransitions as $from => $to) {
+            if (!$this->isTransitionAllowed($from, $to)) {
+                $warnings[] = "Preferred transition {$from} -> {$to} is not in allowedTransitions.";
+            }
+        }
+
+        foreach ($this->rollbackTransitions as $from => $to) {
+            if (!$this->isTransitionAllowed($from, $to)) {
+                $warnings[] = "Rollback transition {$from} -> {$to} is not in allowedTransitions.";
+            }
+        }
+
+        foreach (array_keys($this->guards) as $key) {
+            [$from, $to] = explode('::', $key, 2);
+            if (!$this->isTransitionAllowed($from, $to)) {
+                $warnings[] = "Guard registered for unreachable transition {$from} -> {$to}.";
+            }
+        }
+
+        foreach (array_keys($this->callbacks) as $key) {
+            if (!str_contains($key, '::')) {
+                continue;
+            }
+            [$prefix, $state] = explode('::', $key, 2);
+            if ($prefix === 'enter' || $prefix === 'exit') {
+                if (!in_array($state, $allStates, true)) {
+                    $warnings[] = "Callback registered for unknown state {$state} ({$prefix}).";
+                }
+                continue;
+            }
+            if (!$this->isTransitionAllowed($prefix, $state)) {
+                $warnings[] = "Callback registered for unreachable transition {$prefix} -> {$state}.";
+            }
+        }
+
+        if ($this->defaultState !== null && in_array($this->defaultState, $allStates, true)) {
+            $reachable = $this->reachableFrom($this->defaultState);
+            foreach ($allStates as $state) {
+                if (!in_array($state, $reachable, true)) {
+                    $warnings[] = "State {$state} is unreachable from default state {$this->defaultState}.";
+                }
+            }
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * @return array<int, class-string<State>>
+     */
+    protected function reachableFrom(string $start): array
+    {
+        $visited = [$start];
+        $queue = [$start];
+
+        while ($queue !== []) {
+            $current = array_shift($queue);
+            foreach ($this->allowedTransitions[$current] ?? [] as $next) {
+                if (!in_array($next, $visited, true)) {
+                    $visited[] = $next;
+                    $queue[] = $next;
+                }
+            }
+        }
+
+        return $visited;
+    }
 }
